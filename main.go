@@ -350,7 +350,7 @@ func checkWildCard(domain jobL, dnsTimeOut int, dnsRetries int, dnsErrorLimit in
 		}
 
 		if(res.Status && res.Data.StatusCode != "NXDOMAIN"){
-			fmt.Printf("[%v] Wilcard Positive response. Canceling tasks: %v\n", domain.domain, fullDomain)
+			//fmt.Printf("[%v] Wilcard Positive response. Canceling tasks: %v\n", domain.domain, fullDomain)
 			wildcard = true
 			break
 		}else{
