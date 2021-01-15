@@ -10,6 +10,7 @@ import (
 	"strings"
 	"net/url"
 	
+	def 		"github.com/bp0lr/dmut/defines"
 	dnsManager	"github.com/bp0lr/dmut/dnsManager"
 	util		"github.com/bp0lr/dmut/util"
 	resolver	"github.com/bp0lr/dmut/resolver"
@@ -21,6 +22,7 @@ import (
 	miekg		"github.com/miekg/dns"
 )
 
+type dmutJob = def.DmutJob
 
 type stats struct{
 	domains	int
@@ -203,11 +205,11 @@ func processDNS(domain string, outputFile *os.File, dnsTimeOut int, dnsRetries i
 	
 	domParse, _:=tld.Parse(domain)
 	
-	var job jobL
-	job.domain 	= domain					//domain: lala.test.val.redbull.com
-	job.sld 	= domParse.SLD				//sld: redbull 
-	job.tld 	= domParse.TLD 				//tld: com
-	job.trd 	= domParse.TRD				//trd: lala.test.val
+	var job def.DmutJob
+	job.Domain 	= domain					//domain: lala.test.val.redbull.com
+	job.Sld 	= domParse.SLD				//sld: redbull 
+	job.Tld 	= domParse.TLD 				//tld: com
+	job.Trd 	= domParse.TRD				//trd: lala.test.val
 	
 	//testing if domain response like wildcard. If this is the case, we cancel this task.
 	if(checkWildCard(job, dnsTimeOut, dnsRetries, dnsErrorLimit)){
@@ -327,38 +329,34 @@ func processResponse(domain string, result resolver.JobResponse, outputFile *os.
 	return false
 }
 
-func checkWildCard(domain jobL, dnsTimeOut int, dnsRetries int, dnsErrorLimit int)bool{
+func checkWildCard(job def.DmutJob, dnsTimeOut int, dnsRetries int, dnsErrorLimit int)bool{
 	
 	var res resolver.JobResponse
 	var err error
 	
 	var mutations []string
 	var wildcard bool = false
-	
 	var text = []string{"supposedtonotexistmyfriend"}
 
-	tables.AddToDomain(domain.trd, text, &mutations)
-	
-	for _, v := range mutations{
-		fullDomain:= v + "." + domain.sld + "." + domain.tld
+	tables.AddToDomain(job, text, &mutations)
 
-		//fmt.Printf("[%v] trying %v\n", domain.domain, fullDomain)
-		res, err = resolver.GetDNSQueryResponse(fullDomain, miekg.TypeA, dnsTimeOut, dnsRetries, dnsErrorLimit, "8.8.8.8:53")
+	for _, mutation := range mutations{
+		//fmt.Printf("[%v] trying %v\n", job.Domain, mutation)
+		res, err = resolver.GetDNSQueryResponse(mutation, miekg.TypeA, dnsTimeOut, dnsRetries, dnsErrorLimit, "8.8.8.8:53")
 		if(err != nil){
 			//fmt.Printf("antiWild reported err: %v\n", err)
 			continue
 		}
 
 		if(res.Status && res.Data.StatusCode != "NXDOMAIN"){
-			//fmt.Printf("[%v] Wilcard Positive response. Canceling tasks: %v\n", domain.domain, fullDomain)
+			//fmt.Printf("[%v] Wilcard Positive response. Canceling tasks: %v\n", job.Domain, mutation)
 			wildcard = true
 			break
 		}else{
-			//fmt.Printf("[%v] Wilcard Positive response OK. %v\n", domain.domain, res.Data.StatusCode)
+			//fmt.Printf("[%v] Wilcard Positive response OK. %v\n", job.Domain, res.Data.StatusCode)
 			wildcard = false
 		}
 	}
-	
 
 	return wildcard
 }
