@@ -75,6 +75,20 @@ func parseOptions(args []string, stdout io.Writer) (options, bool, error) {
 	if f.Changed("url") && o.target == "" || f.Changed("input") && o.input == "" {
 		return o, false, errors.New("input paths and target values must not be empty")
 	}
+	for _, name := range []string{"output", "dnsFile", "dnsServers", "confirm-resolvers"} {
+		if f.Changed(name) && f.Lookup(name).Value.String() == "" {
+			return o, false, fmt.Errorf("--%s must not be empty", name)
+		}
+	}
+	if o.target != "" {
+		name, err := normalizeInput(o.target)
+		if err != nil {
+			return o, false, fmt.Errorf("--url: %w", err)
+		}
+		if name == "" {
+			return o, false, errors.New("--url must contain a domain or HTTP(S) URL")
+		}
+	}
 	if appendOutput && o.overwrite {
 		return o, false, errors.New("--append and --overwrite cannot be combined")
 	}

@@ -12,9 +12,11 @@ func TestNormalizeInput(t *testing.T) {
 	tests := []struct{ raw, want string }{
 		{"  Example.COM.\r", "example.com"},
 		{"https://EXAMPLE.com:443/a?q=1#x", "example.com"},
+		{"HTTPS://Example.COM/", "example.com"},
 		{"bücher.example", "xn--bcher-kva.example"},
 		{"printer", "printer"}, {"", ""}, {"  # comment", ""},
 		{"\ufeffExample.com", "example.com"},
+		{"example.com。", "example.com"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.raw, func(t *testing.T) {
@@ -24,7 +26,7 @@ func TestNormalizeInput(t *testing.T) {
 			}
 		})
 	}
-	for _, raw := range []string{".", "foo..example", "-foo.example", "foo-.example", "foo_bar.example", "a b.example", "127.0.0.1", "::1", "https://[::1]/", "ftp://example.com", "https://user:pass@example.com", "https://example.com:99999", "example.com/path", "example.com:53", strings.Repeat("a", 64) + ".example", strings.Repeat("a.", 127) + "a"} {
+	for _, raw := range []string{".", "foo..example", "example.com..", "-foo.example", "foo-.example", "foo_bar.example", "a b.example", "127.0.0.1", "１２７。０。０。１", "::1", "https://[::1]/", "ftp://example.com", "https://user:pass@example.com", "https://example.com:99999", "example.com/path", "example.com:53", strings.Repeat("a", 64) + ".example", strings.Repeat("a.", 127) + "a"} {
 		if _, err := normalizeInput(raw); err == nil {
 			t.Errorf("accepted invalid input %q", raw)
 		}

@@ -20,13 +20,13 @@ const maxInputLine = 64 * 1024
 // normalizeInput accepts hostnames, including internal single-label names,
 // and HTTP(S) URLs. A blank result without an error denotes an ignored line.
 func normalizeInput(raw string) (string, error) {
-	name := strings.TrimSpace(strings.TrimPrefix(raw, "\ufeff"))
+	name := strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(raw), "\ufeff"))
 	if name == "" || strings.HasPrefix(name, "#") {
 		return "", nil
 	}
 	if strings.Contains(name, "://") {
 		u, err := url.Parse(name)
-		if err != nil || u.Host == "" || (u.Scheme != "http" && u.Scheme != "https") || u.User != nil {
+		if err != nil || u.Host == "" || (!strings.EqualFold(u.Scheme, "http") && !strings.EqualFold(u.Scheme, "https")) || u.User != nil {
 			return "", errors.New("expected a domain or HTTP(S) URL without credentials")
 		}
 		if port := u.Port(); port != "" {
@@ -36,15 +36,17 @@ func normalizeInput(raw string) (string, error) {
 		}
 		name = u.Hostname()
 	}
-	name = strings.TrimSuffix(name, ".")
-	if _, err := netip.ParseAddr(name); err == nil {
+	if _, err := netip.ParseAddr(strings.TrimSuffix(name, ".")); err == nil {
 		return "", errors.New("IP literals are not domain names")
 	}
 	ascii, err := idna.Lookup.ToASCII(name)
 	if err != nil {
 		return "", errors.New("invalid internationalized domain name")
 	}
-	ascii = strings.ToLower(ascii)
+	ascii = strings.TrimSuffix(strings.ToLower(ascii), ".")
+	if _, err := netip.ParseAddr(ascii); err == nil {
+		return "", errors.New("IP literals are not domain names")
+	}
 	if len(ascii) == 0 || len(ascii) > 253 {
 		return "", errors.New("domain name must contain 1 to 253 ASCII bytes")
 	}
