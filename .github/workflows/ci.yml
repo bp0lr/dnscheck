@@ -37,7 +37,8 @@ jobs:
           cache: true
       - name: Formatting and module consistency
         run: |
-          test -z "$(gofmt -l ./*.go)"
+          gofmt -w ./*.go
+          git diff --exit-code -- ./*.go
           go mod tidy -diff
       - name: Tests
         run: go test -mod=readonly ./...
