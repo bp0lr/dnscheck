@@ -6,8 +6,6 @@ Originally built to clean lists of subdomains, dnscheck uses resolver components
 
 Use it as a command-line filter for an existing domain list. Results describe DNS answers; they do not establish HTTP availability or service health.
 
-The project is being modernized. See the [improvement roadmap](ROADMAP.md) for the planned commits and their acceptance criteria. This README describes the current implementation.
-
 ## Requirements
 
 - Go 1.26.0 or newer to build from source. Use the latest patch release of a supported Go version.
@@ -86,10 +84,6 @@ Without explicit resolvers, dnscheck looks for `~/.dmut/resolvers.txt`, then fal
 - Verbose messages and statistics are written to stdout alongside results.
 - Output files are appended to, and duplicate input domains may produce duplicate results.
 - `--help` currently prints usage and exits with status 2. Other operational failures may incorrectly exit with status 0.
-
-## Planned improvements
-
-The [roadmap](ROADMAP.md) prioritizes input validation, resolver reliability, more accurate DNS classification, AAAA support, JSONL output, and measured performance improvements. These are planned features and are not available yet.
 
 ## Development
 
