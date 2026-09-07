@@ -1,0 +1,63 @@
+name: CI
+
+on:
+  push:
+    branches: [main, 'codex/**']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: ${{ matrix.os }} / Go ${{ matrix.go }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        go: ['1.26.x', '1.27.x']
+    defaults:
+      run:
+        shell: bash
+    env:
+      GOTOOLCHAIN: local
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: ${{ matrix.go }}
+          cache: true
+      - name: Formatting and module consistency
+        run: |
+          test -z "$(gofmt -l ./*.go)"
+          go mod tidy -diff
+      - name: Tests
+        run: go test -mod=readonly ./...
+      - name: Static analysis
+        run: go vet -mod=readonly ./...
+      - name: Race detector
+        if: runner.os == 'Linux'
+        run: go test -mod=readonly -race ./...
+      - name: Build and smoke test
+        run: |
+          binary=dnscheck
+          if [ "$RUNNER_OS" = Windows ]; then binary=dnscheck.exe; fi
+          go build -mod=readonly -trimpath -ldflags "-s -w -X main.version=$GITHUB_SHA" -o "$RUNNER_TEMP/$binary" .
+          "$RUNNER_TEMP/$binary" --version
+          "$RUNNER_TEMP/$binary" --help > /dev/null
+      - name: Upload binary
+        if: matrix.go == '1.27.x'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: dnscheck-${{ runner.os }}-${{ runner.arch }}
+          path: ${{ runner.temp }}/dnscheck*
+          if-no-files-found: error
+          retention-days: 14
