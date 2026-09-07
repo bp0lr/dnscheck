@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -109,6 +110,24 @@ func TestConfirmationBypassesCache(t *testing.T) {
 	}
 	if calls.Load() != 2 || transport.cacheHits.Load() != 1 {
 		t.Fatalf("calls=%d hits=%d", calls.Load(), transport.cacheHits.Load())
+	}
+}
+
+func TestCacheConcurrentReadsAndEviction(t *testing.T) {
+	c := newReplyCache(8)
+	var wg sync.WaitGroup
+	for worker := range 25 {
+		wg.Go(func() {
+			for i := range 100 {
+				key := cacheKey{"127.0.0.1:53", fmt.Sprintf("host-%d.test.", (worker+i)%16), dns.TypeA}
+				c.put(key, cacheTestReply(dns.RcodeSuccess, false))
+				_, _ = c.get(key)
+			}
+		})
+	}
+	wg.Wait()
+	if len(c.entries) > c.limit || c.order.Len() != len(c.entries) {
+		t.Fatal("cache bounds or index are inconsistent")
 	}
 }
 

@@ -60,6 +60,20 @@ func TestDNSClassification(t *testing.T) {
 			answer = []dns.RR{cnameRecord(name, "loop.test")}
 		case "unrelated.test.":
 			answer = []dns.RR{aRecord("someone-else.test", "192.0.2.9")}
+		case "wrongtype.test.":
+			if typ == dns.TypeA {
+				answer = []dns.RR{aaaaRecord(name, "2001:db8::1")}
+			} else {
+				answer = []dns.RR{aRecord(name, "192.0.2.1")}
+			}
+		case "root-alias.test.":
+			answer = []dns.RR{cnameRecord(name, ".")}
+		case "changing-alias.test.":
+			target := "one.test"
+			if typ == dns.TypeAAAA {
+				target = "two.test"
+			}
+			answer = []dns.RR{cnameRecord(name, target)}
 		case "conflict.test.":
 			if typ == dns.TypeA {
 				answer = []dns.RR{aRecord(name, "192.0.2.1")}
@@ -82,6 +96,8 @@ func TestDNSClassification(t *testing.T) {
 		{"absent.test", "nxdomain", 0, 0, 0}, {"empty.test", "nodata", 0, 0, 0},
 		{"failure.test", "inconclusive", 0, 0, 0}, {"loop.test", "inconclusive", 0, 0, 0},
 		{"unrelated.test", "nodata", 0, 0, 0}, {"conflict.test", "inconclusive", 1, 0, 0},
+		{"wrongtype.test", "nodata", 0, 0, 0}, {"root-alias.test", "inconclusive", 0, 0, 0},
+		{"changing-alias.test", "inconclusive", 0, 0, 1},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

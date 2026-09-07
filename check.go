@@ -81,6 +81,10 @@ func wildcardProbeName(parent string) (string, error) {
 // Unrelated records in a reply must not turn an empty answer into a match.
 func answerRecords(name string, msg *dns.Msg) (records, error) {
 	var out records
+	if msg == nil || len(msg.Question) != 1 {
+		return out, errors.New("DNS answer has no unique question")
+	}
+	qtype := msg.Question[0].Qtype
 	byOwner := make(map[string][]dns.RR)
 	for _, rr := range msg.Answer {
 		if rr.Header().Class == dns.ClassINET {
@@ -96,22 +100,32 @@ func answerRecords(name string, msg *dns.Msg) (records, error) {
 		}
 		seen[owner] = true
 		target := ""
+		hasAddress := false
 		var atOwner records
 		for _, rr := range byOwner[owner] {
 			switch value := rr.(type) {
 			case *dns.A:
-				atOwner.A = append(atOwner.A, value.A.String())
+				hasAddress = true
+				if qtype == dns.TypeA {
+					atOwner.A = append(atOwner.A, value.A.String())
+				}
 			case *dns.AAAA:
-				atOwner.AAAA = append(atOwner.AAAA, value.AAAA.String())
+				hasAddress = true
+				if qtype == dns.TypeAAAA {
+					atOwner.AAAA = append(atOwner.AAAA, value.AAAA.String())
+				}
 			case *dns.CNAME:
 				next := dns.CanonicalName(value.Target)
+				if next == "." {
+					return records{}, errors.New("CNAME target is the DNS root")
+				}
 				if target != "" && target != next {
 					return records{}, errors.New("conflicting CNAME targets in DNS answer")
 				}
 				target = next
 			}
 		}
-		if target != "" && atOwner.any() {
+		if target != "" && hasAddress {
 			return records{}, errors.New("CNAME and address records coexist at the same owner")
 		}
 		out.merge(atOwner)
@@ -142,6 +156,10 @@ func lookupRecords(ctx context.Context, pool *resolverPool, name, avoid, pinned 
 		found, err := answerRecords(name, reply.msg)
 		if err != nil {
 			out.Reason, out.Detail = "invalid_answer", err.Error()
+			return out
+		}
+		if out.Records.any() && found.any() && !slices.Equal(out.Records.CNAME, found.CNAME) {
+			out.Reason = "inconsistent_answers"
 			return out
 		}
 		if reply.msg.Rcode == dns.RcodeNameError {
