@@ -21,10 +21,12 @@ type dnsTransport struct {
 	timeout   time.Duration
 	limiter   *rate.Limiter
 	exchanges atomic.Uint64
+	cache     *replyCache
+	cacheHits atomic.Uint64
 }
 
 func newDNSTransport(o options) *dnsTransport {
-	return &dnsTransport{timeout: o.timeout, limiter: rate.NewLimiter(rate.Limit(o.qps), 1)}
+	return &dnsTransport{timeout: o.timeout, limiter: rate.NewLimiter(rate.Limit(o.qps), 1), cache: newReplyCache(o.cacheSize)}
 }
 
 func (t *dnsTransport) exchange(ctx context.Context, name string, qtype uint16, server, network string) (*dns.Msg, error) {
@@ -62,6 +64,29 @@ func (t *dnsTransport) exchange(ctx context.Context, name string, qtype uint16, 
 }
 
 func (t *dnsTransport) query(ctx context.Context, name string, qtype uint16, server string, fresh bool) (*dns.Msg, error) {
+	msg, _, err := t.lookup(ctx, name, qtype, server, fresh)
+	return msg, err
+}
+
+func (t *dnsTransport) lookup(ctx context.Context, name string, qtype uint16, server string, fresh bool) (*dns.Msg, bool, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, false, err
+	}
+	key := cacheKey{server: server, name: dns.CanonicalName(name), qtype: qtype}
+	if !fresh {
+		if msg, ok := t.cache.get(key); ok {
+			t.cacheHits.Add(1)
+			return msg, true, nil
+		}
+	}
+	msg, err := t.queryWire(ctx, name, qtype, server)
+	if err == nil && !fresh {
+		t.cache.put(key, msg)
+	}
+	return msg, false, err
+}
+
+func (t *dnsTransport) queryWire(ctx context.Context, name string, qtype uint16, server string) (*dns.Msg, error) {
 	resp, err := t.exchange(ctx, name, qtype, server, "udp")
 	if err != nil {
 		return nil, err
@@ -154,9 +179,11 @@ func (p *resolverPool) query(ctx context.Context, name string, qtype uint16, avo
 			return dnsReply{}, errors.Join(last, err)
 		}
 		server := p.servers[i].address // Addresses are immutable after construction.
-		resp, err := p.transport.query(ctx, name, qtype, server, fresh)
+		resp, cached, err := p.transport.lookup(ctx, name, qtype, server, fresh)
 		if err == nil {
-			p.report(i, true)
+			if !cached {
+				p.report(i, true)
+			}
 			return dnsReply{msg: resp, resolver: server}, nil
 		}
 		if ctx.Err() != nil {
