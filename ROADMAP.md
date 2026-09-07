@@ -12,13 +12,13 @@ The target is a subjective usefulness rating of 7 or 8 out of 10 after validatio
 - Compilation and `go vet` passed with Go 1.26.8 on Windows. No automated test cases exist yet.
 - Input parsing, shared counters, resolver errors, wildcard classification, and fixed confirmation settings need correction.
 - There is no measured performance baseline. No speedup is claimed.
-- Go 1.26.0 is the proposed minimum. Its module changes and this documentation are prepared as separate PRs.
+- Go 1.26.0 is the minimum in the prepared changes. Its module changes and this documentation are recorded in separate commits.
 
-## Pull request sequence
+## Commit sequence
 
-Numbers below are plan identifiers, not GitHub PR numbers. Each implementation PR must update help text and README examples for the behavior it actually adds.
+Numbers below identify planned implementation stages. Deliver each stage as a separate commit, splitting it further when needed to keep changes focused. Each implementation commit must update help text and README examples for the behavior it actually adds.
 
-| Plan ID | Proposed PR title | Depends on | Size |
+| Plan ID | Proposed commit title | Depends on | Size |
 | --- | --- | --- | --- |
 | 01 | Raise the minimum Go version to 1.26.0 | Current main | Small |
 | 02 | Document current behavior and the improvement roadmap | 01 | Small |
@@ -29,15 +29,15 @@ Numbers below are plan identifiers, not GitHub PR numbers. Each implementation P
 | 07 | Reduce repeated work with measured, bounded optimizations | 06 | Medium |
 | 08 | Prepare reproducible releases and project presentation | 07 | Small |
 
-PRs 01 and 02 contain the currently prepared changes. PRs 03 through 08 are planned work, not implemented features. Keep each PR independently reviewable and retest after rebasing. PR 02 can initially target the branch for PR 01, then target main after PR 01 merges.
+Stages 01 and 02 are recorded in commits `5181f93` and `d371b2d`. Stages 03 through 08 are planned work, not implemented features. Keep each commit independently reviewable and validate it before continuing. This project uses separate commits for these improvements; pull requests are not part of the delivery workflow.
 
 ### 01: Supported Go baseline
 
 - Set `go 1.26.0` and synchronize the module graph with `go mod tidy`.
-- Preserve existing dependency versions in this PR so compatibility changes remain easy to review.
+- Preserve existing dependency versions in this commit so compatibility changes remain easy to review.
 - Validate compilation and static analysis with Go 1.26.8.
 
-Acceptance: `go test -mod=readonly ./...`, `go vet -mod=readonly ./...`, and `git diff --check` pass. Record that the test command currently checks compilation only. Full dependency modernization belongs to PR 04.
+Acceptance: `go test -mod=readonly ./...`, `go vet -mod=readonly ./...`, and `git diff --check` pass. Record that the test command currently checks compilation only. Full dependency modernization belongs to stage 04.
 
 ### 02: Accurate documentation and roadmap
 
@@ -62,7 +62,7 @@ Acceptance: table-driven tests cover malformed input, URL host extraction, CRLF,
 
 ### 04: Resolver and execution reliability
 
-- Replace the dmut resolver dependency with a small adapter around miekg/dns. Audit and update the remaining dependency versions in this PR.
+- Replace the dmut resolver dependency with a small adapter around miekg/dns. Audit and update the remaining dependency versions in this stage.
 - Return actual errors and remove process exits from resolver internals.
 - Own resolver health state explicitly and synchronize concurrent access. Recover resolvers after transient failures using a defined cooldown policy.
 - Apply configured timeouts and attempt limits consistently. Preserve UDP-to-TCP fallback for truncated responses.
@@ -102,7 +102,7 @@ Acceptance: golden output tests verify valid JSONL, stream separation, reason co
 - Avoid unnecessary response-to-text conversion. Add a configured query-rate limit and bounded queues for predictable resource use.
 - Keep only optimizations that improve measured behavior without changing expected classifications.
 
-Acceptance: publish reproducible benchmark commands and before/after results in the PR. All classification fixtures still pass, cache bounds are tested, and cancellation and slow output do not leak goroutines. Do not claim a percentage speedup before measuring it.
+Acceptance: include reproducible benchmark commands and before/after results in a versioned benchmark report alongside the changes. All classification fixtures still pass, cache bounds are tested, and cancellation and slow output do not leak goroutines. Do not claim a percentage speedup before measuring it.
 
 ### 08: Distribution and presentation
 

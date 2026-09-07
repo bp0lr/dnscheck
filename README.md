@@ -6,7 +6,7 @@ Originally built to clean lists of subdomains, dnscheck uses resolver components
 
 Use it as a command-line filter for an existing domain list. Results describe DNS answers; they do not establish HTTP availability or service health.
 
-The project is being modernized. See the [improvement roadmap](ROADMAP.md) for the planned PRs and their acceptance criteria. This README describes the current implementation.
+The project is being modernized. See the [improvement roadmap](ROADMAP.md) for the planned commits and their acceptance criteria. This README describes the current implementation.
 
 ## Requirements
 
